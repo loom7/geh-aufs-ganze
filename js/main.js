@@ -59,6 +59,7 @@ const ui = {
   result: $('result'), resultEyebrow: $('resultEyebrow'), resultTitle: $('resultTitle'), resultText: $('resultText'),
   backBtn: $('backBtn'), resetBtn: $('resetBtn'),
   zonkText: $('zonkText'), status: $('status'), dim: $('dim'), soundToggle: $('soundToggle'),
+  motionNote: $('motionNote'), motionOn: $('motionOn'), motionKeep: $('motionKeep'),
 };
 
 function fail(message) {
@@ -70,9 +71,39 @@ function fail(message) {
   ui.loader.querySelector('.loader__ring')?.remove();
 }
 
+// Motion: follow the system "reduce motion" setting, but let the viewer switch animations back on.
+// Many phones enable that setting silently (accessibility or battery saver), which made the show look frozen.
+const MOTION_KEY = 'gag-motion';          // 'full' = animations on anyway, 'ack' = keep reduced, notice dismissed
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
-let reduced = motionQuery.matches;
-motionQuery.addEventListener('change', (e) => { reduced = e.matches; });
+const simulateReduced = new URLSearchParams(location.search).has('reducemotion');   // test hook
+let motionPref = null;
+try { motionPref = localStorage.getItem(MOTION_KEY); } catch { /* storage unavailable */ }
+let reduced = false;
+
+function applyMotion() {
+  const system = motionQuery.matches || simulateReduced;
+  reduced = system && motionPref !== 'full';
+  document.documentElement.classList.toggle('reduce-motion', reduced);
+  ui.motionNote.hidden = !(system && motionPref === null);
+}
+
+function setMotionPref(value) {
+  motionPref = value;
+  try { localStorage.setItem(MOTION_KEY, value); } catch { /* keep it for this visit only */ }
+  applyMotion();
+}
+
+motionQuery.addEventListener('change', applyMotion);
+ui.motionOn.addEventListener('click', () => {
+  setMotionPref('full');
+  ui.status.textContent = 'Animationen eingeschaltet.';
+  ui.buttons[0].focus({ preventScroll: true });
+});
+ui.motionKeep.addEventListener('click', () => {
+  setMotionPref('ack');
+  ui.buttons[0].focus({ preventScroll: true });
+});
+applyMotion();
 const coarse = matchMedia('(pointer: coarse)').matches;
 const quality = coarse || (navigator.hardwareConcurrency || 8) <= 4 ? 'low' : 'high';
 
@@ -287,6 +318,7 @@ async function init() {
   const setInteractive = (on) => {
     ui.gates.inert = !on;
     ui.hint.classList.toggle('is-hidden', !on);
+    ui.motionNote.classList.toggle('is-hidden', !on);
   };
 
   function updateLabels() {
