@@ -177,23 +177,6 @@ kbd {
 }
 .hint__reset:hover { transform: translateY(-1px); }
 
-/* ---------- Motion notice ---------- */
-.motion-note {
-  position: fixed; left: 0; right: 0; z-index: 16;
-  bottom: calc(max(44px, calc(env(safe-area-inset-bottom) + 38px)) + 64px);
-  width: fit-content; max-width: calc(100vw - 24px); margin-inline: auto;
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .6rem .9rem;
-  padding: .75rem .9rem .75rem 1.1rem; border-radius: 18px;
-  background: rgba(28, 20, 80, .82); border: 1px solid rgba(255, 198, 46, .4);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, .4);
-}
-.motion-note.is-hidden { visibility: hidden; opacity: 0; }
-.motion-note__text { margin: 0; font-size: .9rem; line-height: 1.4; color: var(--muted); text-align: center; }
-.motion-note__text strong { color: var(--ink); }
-.motion-note__actions { display: flex; gap: .5rem; }
-.btn--sm { font-size: .82rem; padding: .65em 1em; }
-
 /* ---------- Zonk text ---------- */
 .zonk-text {
   position: fixed; inset: 0; z-index: 25;
@@ -373,7 +356,3 @@ body.is-presenting .tagline { opacity: 0; }
   .zonk-text__emoji { font-size: min(8vw, 12vh); }
   .footer { padding-top: 4px; }
 }
-
-/* reduced motion: class set from the system setting unless the viewer switched animations back on */
-.reduce-motion .brand__burst, .reduce-motion .loader__ring, .reduce-motion .install[open] { animation: none; }
-.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after { transition-duration: .01ms !important; }
