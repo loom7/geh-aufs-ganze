@@ -1,0 +1,107 @@
+﻿<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test - Hortensienkranz</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05041a; overflow: hidden; }
+  canvas { display: block; }
+  #info { position: fixed; left: 8px; top: 6px; color: #9ab; font: 12px/1.4 monospace; white-space: pre; pointer-events: none; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="info">loading...</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { createFlowerWreath } from '../js/prize-wreath.js';
+
+const qs = new URLSearchParams(location.search);
+const rotParam = qs.has('rot') ? parseFloat(qs.get('rot')) : null;
+const quality = qs.get('q') || 'high';
+const seed = qs.has('seed') ? parseInt(qs.get('seed'), 10) : 1994;
+const tilt = qs.has('tilt') ? parseFloat(qs.get('tilt')) : 0;
+const dist = qs.has('dist') ? parseFloat(qs.get('dist')) : 4.6;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#05041a');
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.6;
+
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 0.25 * dist / 4.6, dist);
+
+const spot = new THREE.SpotLight('#ffd6a0', 60, 0, Math.PI / 6, 0.5, 2);
+spot.position.set(1.2, 4.0, 5.0);
+scene.add(spot, spot.target);
+scene.add(new THREE.HemisphereLight('#bcc8ff', '#201810', 0.35));
+
+const t0 = performance.now();
+const model = createFlowerWreath({ quality, seed });
+const buildMs = performance.now() - t0;
+
+// same as prizes.js centerAndFit
+const box = new THREE.Box3().setFromObject(model);
+const sphere = box.getBoundingSphere(new THREE.Sphere());
+model.position.sub(sphere.center);
+const pivot = new THREE.Group();
+pivot.add(model);
+pivot.scale.setScalar(1.25 / sphere.radius);
+pivot.rotation.x = tilt;
+scene.add(pivot);
+
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType }));
+composer.setPixelRatio(renderer.getPixelRatio());
+composer.setSize(innerWidth, innerHeight);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.4, 0.5, 0.95));
+composer.addPass(new OutputPass());
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// measure model draw calls / triangles with a plain render
+renderer.render(scene, camera);
+const stats = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, buildMs: +buildMs.toFixed(1), quality, box: box.getSize(new THREE.Vector3()).toArray().map(v => +v.toFixed(3)), heads: model.userData.heads };
+window.__stats = stats;
+console.log('wreath stats', JSON.stringify(stats));
+document.getElementById('info').textContent = `quality ${quality}  build ${stats.buildMs} ms\ncalls ${stats.calls}  tris ${stats.triangles}\nsize ${stats.box.join(' x ')}`;
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Timer();
+renderer.setAnimationLoop(() => {
+  clock.update(); const t = clock.getElapsed();
+  pivot.rotation.y = rotParam !== null ? rotParam : t * 0.35;
+  if (model.userData.update) model.userData.update(t);
+  controls.update();
+  composer.render();
+});
+</script>
+</body>
+</html>

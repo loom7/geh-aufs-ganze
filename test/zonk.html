@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zonk prize test</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #05041a; overflow: hidden; }
+  #info { position: fixed; left: 8px; top: 8px; color: #b9b6d8; font: 12px/1.4 monospace; white-space: pre; pointer-events: none; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="info">loading…</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { createZonk } from '../js/prize-zonk.js';
+
+const qs = new URLSearchParams(location.search);
+const rotParam = qs.has('rot') ? parseFloat(qs.get('rot')) : null;
+const tParam = qs.has('t') ? parseFloat(qs.get('t')) : null;
+const quality = qs.get('q') || 'high';
+const zoom = parseFloat(qs.get('zoom') || '1');
+const pitch = parseFloat(qs.get('pitch') || '0.12');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#05041a');
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.6;
+
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.05, 100);
+const dist = 5.2 / zoom;
+camera.position.set(0, Math.sin(pitch) * dist, Math.cos(pitch) * dist);
+
+const key = new THREE.SpotLight(0xffe0bd, 70, 0, 0.55, 0.6, 2);
+key.position.set(1.2, 4.2, 4.2);
+scene.add(key, key.target);
+scene.add(new THREE.HemisphereLight(0x8890c0, 0x1a1020, 0.35));
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true;
+controls.update();
+
+function centerAndFit(object, radius = 1) {
+  const box = new THREE.Box3().setFromObject(object);
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  object.position.sub(sphere.center);
+  const wrapper = new THREE.Group();
+  wrapper.add(object);
+  wrapper.scale.setScalar(radius / sphere.radius);
+  wrapper.userData.update = object.userData.update;
+  return wrapper;
+}
+
+const t0 = performance.now();
+const model = createZonk({ quality });
+const buildMs = performance.now() - t0;
+const prize = centerAndFit(model, 1.25);
+scene.add(prize);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.35, 0.4, 0.95));
+composer.addPass(new OutputPass());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+
+// measure one plain render of the model only
+if (rotParam !== null) prize.rotation.y = rotParam;
+prize.userData.update?.(tParam ?? 0);
+renderer.info.autoReset = false;
+renderer.info.reset();
+renderer.render(scene, camera);
+const stats = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, buildMs: +buildMs.toFixed(1), quality };
+renderer.info.autoReset = true;
+console.log('ZONK STATS', JSON.stringify(stats));
+window.__zonkStats = stats;
+document.getElementById('info').textContent =
+  `quality ${quality}\nbuild ${stats.buildMs} ms\ndraw calls ${stats.calls}\ntriangles ${stats.triangles}`;
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = clock.getDelta();
+  const t = tParam ?? clock.elapsedTime;
+  if (rotParam === null) prize.rotation.y += dt * 0.35;
+  prize.userData.update?.(t);
+  controls.update();
+  composer.render();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Geh aufs Ganze! – Tor 1, 2 oder 3?</title>
+  <meta name="description" content="Inoffizielles Fan-Projekt im Stil der Spielshow: Wähle Tor 1, 2 oder 3 – Silberschmuck, Blumenkranz oder der Zonk?">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#05041a">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/",
+      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js",
+      "gsap/": "https://cdn.jsdelivr.net/npm/gsap@3.15.0/"
+    }
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Manrope:wght@400;600;800&family=Titan+One&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&text=%F0%9F%A5%B2&display=swap">
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js" crossorigin>
+  <link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+  <canvas id="stage" aria-hidden="true"></canvas>
+  <div id="dim" class="dim" aria-hidden="true"></div>
+  <canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="Geh aufs Ganze! – neu laden">
+      <svg class="brand__burst" viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <radialGradient id="burstGrad"><stop offset="0" stop-color="#ffd84d" stop-opacity=".55"/><stop offset="1" stop-color="#ff7a00" stop-opacity="0"/></radialGradient>
+        </defs>
+        <g fill="url(#burstGrad)">
+          <polygon points="100,0 108,70 170,20 125,82 200,70 130,100 200,130 125,118 170,180 108,130 100,200 92,130 30,180 75,118 0,130 70,100 0,70 75,82 30,20 92,70"/>
+        </g>
+      </svg>
+      <span class="brand__small">Geh aufs</span>
+      <span class="brand__big"><span class="brand__extrude" aria-hidden="true">Ganze!</span><span class="brand__face">Ganze!</span></span>
+    </a>
+    <p class="tagline"><span>Tor 1, 2 oder 3?</span></p>
+    <button id="soundToggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Ton">
+      <svg class="icon icon--on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg class="icon icon--off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span class="icon-btn__label">Ton aus</span>
+    </button>
+  </header>
+
+  <main>
+    <h1 class="sr-only">Geh aufs Ganze! – Wähle Tor 1, 2 oder 3</h1>
+    <ul class="gates" id="gates" aria-label="Tore">
+      <li><button class="gate-btn" type="button" data-gate="0"><span class="sr-only">Tor 1 öffnen</span></button></li>
+      <li><button class="gate-btn" type="button" data-gate="1"><span class="sr-only">Tor 2 öffnen</span></button></li>
+      <li><button class="gate-btn" type="button" data-gate="2"><span class="sr-only">Tor 3 öffnen</span></button></li>
+    </ul>
+
+    <div class="hint" id="hint">
+      <span class="hint__text">Wähle ein Tor</span>
+      <span class="hint__keys" aria-hidden="true"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></span>
+      <span class="hint__count" id="hintCount">0 von 3 geöffnet</span>
+      <button class="hint__reset" id="hintReset" type="button" hidden>Neues Spiel</button>
+    </div>
+
+    <div class="zonk-text" id="zonkText" hidden>
+      <p><span class="zonk-text__line">Schade, schade!</span><span class="zonk-text__emoji">🥲</span></p>
+    </div>
+
+    <section class="result" id="result" hidden aria-labelledby="resultTitle">
+      <p class="result__eyebrow" id="resultEyebrow">Hinter Tor 1</p>
+      <h2 class="result__title" id="resultTitle">Silberschmuck</h2>
+      <p class="result__text" id="resultText"></p>
+      <div class="result__actions">
+        <button class="btn btn--primary" id="backBtn" type="button">Zurück zur Bühne</button>
+        <button class="btn btn--ghost" id="resetBtn" type="button">Neues Spiel</button>
+      </div>
+    </section>
+
+    <p id="status" class="sr-only" role="status" aria-live="polite"></p>
+  </main>
+
+  <footer class="footer">
+    Inoffizielles Fan-Projekt – nicht verbunden mit Sat.1, kabel eins oder den Rechteinhabern von „Geh aufs Ganze!“.
+  </footer>
+
+  <div class="loader" id="loader" role="alert" aria-busy="true">
+    <div class="loader__inner">
+      <div class="loader__ring" aria-hidden="true"></div>
+      <p class="loader__text" id="loaderText">Die Bühne wird aufgebaut …</p>
+    </div>
+  </div>
+
+  <noscript>
+    <div class="loader"><p class="loader__text">Für die Show wird JavaScript benötigt.</p></div>
+  </noscript>
+
+  <script>
+    // Watchdog: if the 3D module never reports ready (blocked CDN, very old browser), explain instead of spinning forever.
+    window.__gagLoadFailed = function () {
+      if (window.__gagReady || window.__gagFailed) return;
+      window.__gagFailed = true;
+      var loader = document.getElementById('loader');
+      var ring = loader && loader.querySelector('.loader__ring');
+      if (ring) ring.remove();
+      if (loader) loader.setAttribute('aria-busy', 'false');
+      var t = document.getElementById('loaderText');
+      if (t) t.textContent = 'Die Show konnte nicht geladen werden. Bitte prüfe die Internetverbindung oder nutze einen aktuellen Browser mit WebGL.';
+    };
+    if (!(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'))) {
+      document.addEventListener('DOMContentLoaded', window.__gagLoadFailed);
+    }
+    window.__gagWatchdog = setTimeout(window.__gagLoadFailed, 20000);
+  </script>
+  <script type="module" src="js/main.js" onerror="window.__gagLoadFailed()"></script>
+</body>
+</html>
