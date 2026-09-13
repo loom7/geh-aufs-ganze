@@ -13,7 +13,7 @@ import { CustomEase } from 'gsap/CustomEase.js';
 import { createStudioEnvironment, createSilverNecklace, createSilverRing, centerAndFit } from './prizes.js';
 import { createZonk } from './prize-zonk.js';
 import { createFlowerWreath } from './prize-wreath.js';
-import { createStudio, createGate, Sparks, GATE_GAP, GATE_W, GATE_H, PRIZE_R } from './stage.js';
+import { createStudio, createGate, Sparks, GATE_GAP, GATE_W, GATE_H, PRIZE_R, PLATFORM_H } from './stage.js';
 import { SoundBoard } from './audio.js';
 import { burstConfetti, clearConfetti } from './confetti.js';
 
@@ -335,28 +335,62 @@ async function init() {
     return tl;
   }
 
+  // Presentation in two acts:
+  //  1. the prize glides slowly out of the open gate towards the audience, the camera only leans in a little;
+  //  2. camera and prize meet in the close-up. Texts appear only after the prize has arrived.
+  const EMERGE = 3.0;
+  const FLY = 1.9;
+  const CURTAIN_LEAD = 2.3;       // prize starts moving while the curtain finishes gathering
+
   function presentTimeline(g) {
-    const { camEnd, lookEnd, target } = presentPose(g);
+    const gx = g.root.position.x;
+    const emerge = new THREE.Vector3(gx, PLATFORM_H + PRIZE_R + 0.6, 2.4);
+    // Poses depend on the viewport, so they are resolved when each act starts (function-based tween values),
+    // not when the gate is clicked — rotating the phone during the curtain opening still frames correctly.
+    let pose = null;
+    const P = () => pose || (pose = presentPose(g));
+    const mid = () => {
+      const portrait = camera.aspect < 0.8;
+      return {
+        cam: HOME.pos.clone().lerp(P().camEnd, portrait ? 0.3 : 0.22),
+        look: HOME.look.clone().lerp(new THREE.Vector3(gx, PLATFORM_H + 1.4, 1), 0.45),
+      };
+    };
+    const xyz = (get) => ({ x: () => get().x, y: () => get().y, z: () => get().z });
     const tl = gsap.timeline();
     tl.add(() => {
+      pose = null;
       scene.attach(g.holder);
       presentKey.target = g.holder;
-      placePresentLights(target);
+      placePresentLights(P().target);
       focus = g;
     }, 0)
-      .to(camPos, { x: camEnd.x, y: camEnd.y, z: camEnd.z, duration: 1.7, ease: 'power3.inOut' }, 0)
-      .to(look, { x: lookEnd.x, y: lookEnd.y, z: lookEnd.z, duration: 1.7, ease: 'power3.inOut' }, 0)
-      .to(dim, { value: 1, duration: 1.2 }, 0)
-      .to(ui.dim, { opacity: 1, duration: 1.2 }, 0.2)
-      .to(g.holder.position, { x: target.x, y: target.y, z: target.z, duration: 1.8, ease: 'expo.inOut' }, 0.1)
-      .fromTo(g.holder.scale, { x: 0.7, y: 0.7, z: 0.7 }, { x: 1, y: 1, z: 1, duration: 2.1, ease: 'elastic.out(1, 0.5)', immediateRender: false }, 0.55)
-      .to(g.extraSpin, { value: `+=${Math.PI * 4}`, duration: 2.6, ease: 'power3.out' }, 0.2)
-      .to(g.tilt, { value: 0.14, duration: 1.2 }, 0.3)
-      .to(g.float, { value: 1, duration: 1 }, 1.4)
-      .to(presentKey, { intensity: 240, duration: 1.0 }, 0.7)
-      .to(presentRim, { intensity: 18, duration: 1.0 }, 0.7)
-      .add(() => reveal(g), 1.55)
-      .add(() => showResult(g), 2.1);
+      // act 1 — out of the gate
+      .to(g.holder.position, { y: emerge.y, duration: 1.4, ease: 'sine.inOut' }, 0)
+      .to(g.holder.position, { x: emerge.x, z: emerge.z, duration: EMERGE, ease: 'power1.inOut' }, 0.25)
+      .to(g.holder.scale, { x: 1.12, y: 1.12, z: 1.12, duration: EMERGE, ease: 'sine.inOut' }, 0.25)
+      .to(g.extraSpin, { value: `+=${Math.PI * 2}`, duration: EMERGE + 0.25, ease: 'sine.inOut' }, 0)
+      .to(camPos, { ...xyz(() => mid().cam), duration: EMERGE + 0.25, ease: 'sine.inOut' }, 0)
+      .to(look, { ...xyz(() => mid().look), duration: EMERGE + 0.25, ease: 'sine.inOut' }, 0)
+      .to(dim, { value: 0.6, duration: EMERGE }, 0)
+      .to(ui.dim, { opacity: 0.45, duration: EMERGE }, 0.5)
+      .to(presentKey, { intensity: 120, duration: 1.4 }, 0.6)
+      .addLabel('fly', EMERGE + 0.25)
+      // act 2 — into the close-up (re-resolve the pose for the current viewport)
+      .add(() => { pose = null; placePresentLights(P().target); }, 'fly')
+      .to(g.holder.position, { ...xyz(() => P().target), duration: FLY, ease: 'power2.inOut' }, 'fly')
+      .to(g.holder.scale, { x: 1, y: 1, z: 1, duration: FLY, ease: 'sine.inOut' }, 'fly')
+      .to(g.extraSpin, { value: `+=${Math.PI * 2}`, duration: FLY + 0.6, ease: 'power2.out' }, 'fly')
+      .to(camPos, { ...xyz(() => P().camEnd), duration: FLY + 0.2, ease: 'power2.inOut' }, 'fly')
+      .to(look, { ...xyz(() => P().lookEnd), duration: FLY + 0.2, ease: 'power2.inOut' }, 'fly')
+      .to(dim, { value: 1, duration: 1.2 }, 'fly')
+      .to(ui.dim, { opacity: 1, duration: 1.4 }, 'fly')
+      .to(g.tilt, { value: 0.14, duration: 1.2 }, 'fly')
+      .to(presentKey, { intensity: 240, duration: 1.0 }, 'fly+=0.4')
+      .to(presentRim, { intensity: 18, duration: 1.0 }, 'fly+=0.4')
+      .to(g.float, { value: 1, duration: 1 }, `fly+=${FLY}`)
+      .add(() => reveal(g), `fly+=${FLY + 0.15}`)
+      .add(() => showResult(g), `fly+=${FLY + 0.95}`);
     return tl;
   }
 
@@ -434,15 +468,17 @@ async function init() {
     setInteractive(false);
     sound.click();
     gsap.to(g.hover, { value: 0, duration: 0.4 });
+    const tl = gsap.timeline();
+    let presentAt = 0;
     if (!g.opened) {
       ui.status.textContent = `Tor ${i + 1} öffnet sich …`;
-      await play(openCurtainTimeline(g));
-      g.opened = true;
-      updateLabels();
-      updateHint();
+      tl.add(openCurtainTimeline(g), 0);
+      tl.add(() => { g.opened = true; updateLabels(); updateHint(); }, CURTAIN_LEAD);
+      presentAt = CURTAIN_LEAD;
     }
-    presentTl = presentTimeline(g);
-    await play(presentTl);
+    tl.add(presentTimeline(g), presentAt);
+    presentTl = tl;
+    await play(tl);
     presentTl = null;
     state = 'presenting';
     layout();                     // catch viewport changes that happened mid-animation
@@ -455,6 +491,7 @@ async function init() {
     resultShown = false;
     const g = focus;
     hideOverlays();
+    clearConfetti();
     const tl = gsap.timeline();
     tl.add(() => g.root.attach(g.holder), 0)
       .to(g.holder.position, { x: g.restPos.x, y: g.restPos.y, z: g.restPos.z, duration: 1.4, ease: 'power3.inOut' }, 0)

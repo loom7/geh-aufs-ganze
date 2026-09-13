@@ -8,23 +8,27 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="theme-color" content="#05041a">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Geh aufs Ganze">
 
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.0/examples/jsm/",
-      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.15.0/index.js",
-      "gsap/": "https://cdn.jsdelivr.net/npm/gsap@3.15.0/"
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/",
+      "gsap": "./vendor/gsap/index.js",
+      "gsap/": "./vendor/gsap/"
     }
   }
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Manrope:wght@400;600;800&family=Titan+One&display=swap">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&text=%F0%9F%A5%B2&display=swap">
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/three@0.186.0/build/three.module.js" crossorigin>
+  <link rel="stylesheet" href="vendor/fonts/fonts.css">
+  <link rel="modulepreload" href="vendor/three/build/three.module.js">
+  <link rel="modulepreload" href="vendor/three/build/three.core.js">
   <link rel="stylesheet" href="css/style.css">
 
 </head>
@@ -47,11 +51,17 @@
       <span class="brand__big"><span class="brand__extrude" aria-hidden="true">Ganze!</span><span class="brand__face">Ganze!</span></span>
     </a>
     <p class="tagline"><span>Tor 1, 2 oder 3?</span></p>
-    <button id="soundToggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Ton">
-      <svg class="icon icon--on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <svg class="icon icon--off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <span class="icon-btn__label">Ton aus</span>
-    </button>
+    <div class="topbar__actions">
+      <button id="installBtn" class="icon-btn" type="button" aria-haspopup="dialog" aria-label="App laden" hidden>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0-4.5-4.5M12 14l4.5-4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 16v3h14v-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="icon-btn__label">App laden</span>
+      </button>
+      <button id="soundToggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Ton">
+        <svg class="icon icon--on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg class="icon icon--off" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="m16 9 5 6m0-6-5 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span class="icon-btn__label">Ton aus</span>
+      </button>
+    </div>
   </header>
 
   <main>
@@ -86,6 +96,42 @@
     <p id="status" class="sr-only" role="status" aria-live="polite"></p>
   </main>
 
+  <dialog class="install" id="installDialog" aria-labelledby="installTitle">
+    <form method="dialog" class="install__close-form">
+      <button class="install__close" type="submit" aria-label="Schließen">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
+    </form>
+    <img class="install__icon" src="assets/icon-192.png" alt="" width="72" height="72">
+    <h2 class="install__title" id="installTitle">Die Show aufs Handy holen</h2>
+    <p class="install__lead">Einmal installieren, danach startet „Geh aufs Ganze!“ wie eine App vom Startbildschirm – im Vollbild und auch ohne Internet.</p>
+    <p class="install__offline" id="offlineStatus" data-state="loading">Offline-Paket wird vorbereitet …</p>
+    <button class="btn btn--primary install__go" id="installGo" type="button" hidden>Jetzt installieren</button>
+    <div class="install__steps" id="stepsIos" hidden>
+      <p class="install__steps-title">So geht’s auf dem iPhone / iPad (Safari):</p>
+      <ol>
+        <li>Unten auf <strong>Teilen</strong> tippen (Quadrat mit Pfeil nach oben).</li>
+        <li><strong>„Zum Home-Bildschirm“</strong> wählen.</li>
+        <li>Mit <strong>„Hinzufügen“</strong> bestätigen.</li>
+      </ol>
+    </div>
+    <div class="install__steps" id="stepsAndroid" hidden>
+      <p class="install__steps-title">So geht’s unter Android (Chrome):</p>
+      <ol>
+        <li>Oben rechts auf das Menü <strong>⋮</strong> tippen.</li>
+        <li><strong>„App installieren“</strong> oder <strong>„Zum Startbildschirm hinzufügen“</strong> wählen.</li>
+        <li>Mit <strong>„Installieren“</strong> bestätigen.</li>
+      </ol>
+    </div>
+    <div class="install__steps" id="stepsDesktop" hidden>
+      <p class="install__steps-title">Aufs Handy bringen:</p>
+      <ol>
+        <li>Diese Seite auf dem Smartphone öffnen:<br><span class="install__url" id="installUrl"></span></li>
+        <li>Dort auf <strong>„App laden“</strong> tippen und den Schritten folgen.</li>
+      </ol>
+    </div>
+  </dialog>
+
   <footer class="footer">
     Inoffizielles Fan-Projekt – nicht verbunden mit Sat.1, kabel eins oder den Rechteinhabern von „Geh aufs Ganze!“.
   </footer>
@@ -118,6 +164,7 @@
     }
     window.__gagWatchdog = setTimeout(window.__gagLoadFailed, 20000);
   </script>
+  <script type="module" src="js/install.js"></script>
   <script type="module" src="js/main.js" onerror="window.__gagLoadFailed()"></script>
 </body>
 </html>
